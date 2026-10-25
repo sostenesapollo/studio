@@ -1,0 +1,27 @@
+{
+  "name": "studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run server.ts",
+    "build": "cd ui && vite build",
+    "ui": "cd ui && vite",
+    "broll": "bun run scripts/fetch-broll.ts"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.538",
+    "@remotion/player": "^4.0.538",
+    "@remotion/renderer": "^4.0.538",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "remotion": "^4.0.538"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.1.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0"
+  }
+}

@@ -1,0 +1,22 @@
+# deps
+node_modules/
+ui/node_modules/
+
+# banco e mídia (ficam só na máquina)
+studio.sqlite
+studio.sqlite-shm
+studio.sqlite-wal
+assets/
+*.mp4
+*.m4a
+*.mp3
+*.jpg
+*.png
+!assets/overlay/**/*.svg
+
+# build/caches
+.build/
+dist/
+.cache/
+tmp/
+.DS_Store
