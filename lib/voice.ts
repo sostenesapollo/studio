@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { ASSETS } from "../db";
 import { getKeys } from "./keys";
 import { FFMPEG, probeDuration, run } from "./media";
+import type { Lang } from "./writer";
 
 const VOICES = join(ASSETS, "voices");
 mkdirSync(VOICES, { recursive: true });
@@ -14,11 +15,29 @@ export function voiceEnabled() {
   return Boolean(getKeys().elevenlabs);
 }
 
-const CACHE = join(VOICES, "pt-voices.json");
+/** id da voz padrão por idioma (usado se a conta não tiver voz daquele idioma) */
+const DEFAULT_VOICE: Record<Lang, string> = {
+  pt: "21m00Tcm4TlvDq8ikWAM", // Rachel fala português no eleven_multilingual_v2
+  en: "21m00Tcm4TlvDq8ikWAM",
+};
 
-async function ptVoices(key: string): Promise<string[]> {
+function matchesLang(labels: string, name: string, lang: Lang): boolean {
+  if (lang === "pt") {
+    return labels.includes('"language":"pt') || labels.includes("portugu") || /portugu/i.test(name);
+  }
+  return (
+    labels.includes('"language":"en') ||
+    /english|american|british|australian|irish|canadian/.test(labels) ||
+    /english|american|british|australian/.test(name)
+  );
+}
+
+const cachePath = (lang: Lang) => join(VOICES, `${lang}-voices.json`);
+
+async function voicesFor(key: string, lang: Lang): Promise<string[]> {
+  const cache = cachePath(lang);
   try {
-    const raw = await Bun.file(CACHE).text();
+    const raw = await Bun.file(cache).text();
     const list = JSON.parse(raw);
     if (Array.isArray(list) && list.length) return list;
   } catch {}
@@ -26,28 +45,26 @@ async function ptVoices(key: string): Promise<string[]> {
   if (!r.ok) throw new Error(`elevenlabs voices HTTP ${r.status}`);
   const j: any = await r.json();
   const all: any[] = j?.voices ?? [];
-  const pt = all.filter((v) => {
-    const labels = JSON.stringify(v.labels ?? {}).toLowerCase();
-    return labels.includes('"language":"pt') || labels.includes("portugu") || /portugu/i.test(v.name ?? "");
-  });
-  const ids = (pt.length ? pt : all).map((v) => v.voice_id).filter(Boolean);
-  await Bun.write(CACHE, JSON.stringify(ids, null, 2));
+  const matched = all.filter((v) => matchesLang(JSON.stringify(v.labels ?? {}).toLowerCase(), String(v.name ?? "").toLowerCase(), lang));
+  const ids = (matched.length ? matched : all).map((v) => v.voice_id).filter(Boolean);
+  await Bun.write(cache, JSON.stringify(ids, null, 2));
   return ids;
 }
 
-async function pickVoice(key: string, prefer?: string | null, seed?: number): Promise<string> {
-  if (prefer) return prefer;
-  const ids = await ptVoices(key);
-  if (!ids.length) return "21m00Tcm4TlvDq8ikWAM";
+async function pickVoice(key: string, prefer: string | null | undefined, seed: number | undefined, lang: Lang): Promise<string> {
+  // a voz fixa da marca é PT-BR: só vale quando o vídeo é em português
+  if (prefer && lang === "pt") return prefer;
+  const ids = await voicesFor(key, lang);
+  if (!ids.length) return DEFAULT_VOICE[lang];
   return ids[Math.abs(seed ?? 0) % ids.length];
 }
 
 export type VoiceResult = { path: string; duration: number; chars: number };
 
-export async function synthesize(text: string, voiceId?: string | null, seed?: number): Promise<VoiceResult> {
+export async function synthesize(text: string, voiceId?: string | null, seed?: number, lang: Lang = "pt"): Promise<VoiceResult> {
   const key = getKeys().elevenlabs;
   if (!key) throw new Error("sem chave ElevenLabs — cole na aba Créditos");
-  const id = await pickVoice(key, voiceId, seed);
+  const id = await pickVoice(key, voiceId, seed, lang);
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${id}?output_format=mp3_44100_128`, {
     method: "POST",
     headers: { "xi-api-key": key, "Content-Type": "application/json", Accept: "audio/mpeg" },

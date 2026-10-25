@@ -43,6 +43,30 @@ function fmtDur(s: number | null) {
   return `${Math.round(s)}s`;
 }
 
+/** "2026-10-25 14:22:33" (UTC do sqlite) -> "25/10 · 14:22" no fuso local */
+function fmtWhen(s: string | null | undefined) {
+  if (!s) return "—";
+  const d = new Date(s.length > 10 ? s.replace(" ", "T") + "Z" : s + "T00:00:00Z");
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function CopyBtn({ text, label }: { text: string; label: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      className="btn sm"
+      onClick={async () => {
+        await navigator.clipboard.writeText(text);
+        setDone(true);
+        window.setTimeout(() => setDone(false), 1400);
+      }}
+    >
+      {done ? "✓ copiado" : label}
+    </button>
+  );
+}
+
 function money(v: number | null, unit: string) {
   if (v === null) return "—";
   if (unit === "usd") return `US$ ${v.toFixed(2)}`;
@@ -170,6 +194,8 @@ function Videos({ brands, onChange }: { brands: Brand[]; onChange: () => void })
                     {v.brand}
                   </span>
                   <span className="muted">{v.format}</span>
+                  <span className="muted">{(v.lang ?? "pt").toUpperCase()}</span>
+                  <span className="muted">{fmtWhen(v.created_at)}</span>
                 </div>
                 <p className="hook">{v.hook ?? v.title}</p>
                 <div className="row">
@@ -191,6 +217,44 @@ function Videos({ brands, onChange }: { brands: Brand[]; onChange: () => void })
               <div className="meta">
                 <span className="chip" style={{ borderColor: open.accent, color: open.accent }}>{open.brand}</span>
                 <span className="muted">{open.format} · {fmtDur(open.duration)}</span>
+                <span className="muted">{(open.lang ?? "pt").toUpperCase()} · gerado em {fmtWhen(open.created_at)}</span>
+              </div>
+
+              <div className="copyblock">
+                <div className="copyhead">
+                  <span>título</span>
+                  <CopyBtn text={open.hook ?? open.title} label="copiar título" />
+                </div>
+                <p>{open.hook ?? open.title}</p>
+              </div>
+
+              <div className="copyblock">
+                <div className="copyhead">
+                  <span>descrição do post</span>
+                  <CopyBtn text={open.caption ?? ""} label="copiar descrição" />
+                </div>
+                <p>{open.caption ?? "—"}</p>
+              </div>
+
+              <div className="copyblock">
+                <div className="copyhead">
+                  <span>hashtags</span>
+                  <CopyBtn
+                    text={(open.hashtags ?? "")
+                      .split(/\s+/)
+                      .filter(Boolean)
+                      .map((h) => `#${h}`)
+                      .join(" ")}
+                    label="copiar hashtags"
+                  />
+                </div>
+                <p className="tags">
+                  {(open.hashtags ?? "")
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .map((h) => `#${h}`)
+                    .join(" ") || "—"}
+                </p>
               </div>
               {proj ? (
                 <div className="ficha">
@@ -317,6 +381,7 @@ function Videos({ brands, onChange }: { brands: Brand[]; onChange: () => void })
 
 function Gerar({ brands, onDone }: { brands: Brand[]; onDone: () => void }) {
   const [brand, setBrand] = useState(brands[0]?.slug ?? "giftsqr");
+  const [lang, setLang] = useState("pt");
   const [format, setFormat] = useState("faceless");
   const [template, setTemplate] = useState("auto");
   const [angle, setAngle] = useState("auto");
@@ -340,6 +405,7 @@ function Gerar({ brands, onDone }: { brands: Brand[]; onDone: () => void }) {
     try {
       await api.post("/api/generate", {
         brand,
+        lang,
         format,
         count,
         hook: hook || undefined,
@@ -372,6 +438,19 @@ function Gerar({ brands, onDone }: { brands: Brand[]; onDone: () => void }) {
               {b.name}
             </button>
           ))}
+        </div>
+
+        <label>Idioma (legenda falada, legendas queimadas, título e descrição)</label>
+        <div className="seg">
+          <button className={lang === "pt" ? "on" : ""} onClick={() => setLang("pt")} title="roteiro, voz e legenda em português brasileiro">
+            português
+          </button>
+          <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")} title="roteiro, voz e legenda em inglês">
+            inglês
+          </button>
+          <button className={lang === "both" ? "on" : ""} onClick={() => setLang("both")} title="alterna os idiomas vídeo a vídeo">
+            os dois (alterna)
+          </button>
         </div>
 
         <label>Formato</label>

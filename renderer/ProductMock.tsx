@@ -6,12 +6,15 @@ import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
  * Desenhado em HTML/CSS (texto nítido, zero artefato de IA) e animado no tempo.
  */
 
-const BookPanel: React.FC<{ accent: string; title: string; chapter: string; lines: string[]; page: number }> = ({
+type Lang = "pt" | "en";
+
+const BookPanel: React.FC<{ accent: string; title: string; chapter: string; lines: string[]; page: number; lang?: Lang }> = ({
   accent,
   title,
   chapter,
   lines,
   page,
+  lang = "pt",
 }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
@@ -63,13 +66,13 @@ const BookPanel: React.FC<{ accent: string; title: string; chapter: string; line
       </div>
       <div style={{ position: "absolute", top: 0, right: 0, width: 120, height: 120, background: "linear-gradient(225deg, rgba(0,0,0,0.10), transparent 70%)" }} />
       <div style={{ position: "absolute", bottom: 22, right: 22, fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 13, letterSpacing: 2, color: "#fff", background: "#1b1a17", padding: "7px 12px", borderRadius: 4 }}>
-        EPUB · PT-BR
+        {lang === "en" ? "EPUB · EN" : "EPUB · PT-BR"}
       </div>
     </div>
   );
 };
 
-const PhonePanel: React.FC<{ accent: string; name: string; days: string }> = ({ accent, name, days }) => {
+const PhonePanel: React.FC<{ accent: string; name: string; days: string; lang?: Lang }> = ({ accent, name, days, lang = "pt" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const bars = new Array(28).fill(0).map((_, i) => 8 + Math.abs(Math.sin(frame / 6 + i * 0.9)) * 26);
@@ -100,14 +103,14 @@ const PhonePanel: React.FC<{ accent: string; name: string; days: string }> = ({ 
           <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 180, background: "linear-gradient(180deg, transparent, #111)" }} />
         </div>
         <div style={{ padding: "22px 26px", color: "#fff", fontFamily: '"AvenirNext-DemiBold", "Avenir Next", sans-serif' }}>
-          <div style={{ fontSize: 15, letterSpacing: 3, textTransform: "uppercase", color: accent, marginBottom: 10 }}>feito pra você</div>
+          <div style={{ fontSize: 15, letterSpacing: 3, textTransform: "uppercase", color: accent, marginBottom: 10 }}>{lang === "en" ? "made for you" : "feito pra você"}</div>
           <div style={{ fontSize: 38, fontWeight: 800, lineHeight: 1.1, letterSpacing: -0.8, marginBottom: 22 }}>{name}</div>
           <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 34, marginBottom: 22 }}>
             {bars.map((h, i) => (
               <div key={i} style={{ width: 5, height: h, background: i % 3 === 0 ? accent : "rgba(255,255,255,0.35)", borderRadius: 3 }} />
             ))}
           </div>
-          <div style={{ fontSize: 13, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>contando até</div>
+          <div style={{ fontSize: 13, letterSpacing: 2, textTransform: "uppercase", color: "rgba(255,255,255,0.55)" }}>{lang === "en" ? "counting down to" : "contando até"}</div>
           <div style={{ fontFamily: '"AvenirNext-Heavy","Avenir Next",sans-serif', fontSize: 40, fontWeight: 800, letterSpacing: -1, marginTop: 4 }}>{days}</div>
         </div>
       </div>
@@ -115,7 +118,7 @@ const PhonePanel: React.FC<{ accent: string; name: string; days: string }> = ({ 
   );
 };
 
-const ComparePanel: React.FC<{ accent: string; en: string; pt: string }> = ({ accent, en, pt }) => {
+const ComparePanel: React.FC<{ accent: string; en: string; pt: string; lang?: Lang }> = ({ accent, en, pt, lang = "pt" }) => {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
   const sweep = interpolate(frame, [30, durationInFrames * 0.6], [0, 1], { extrapolateRight: "clamp" });
@@ -138,7 +141,7 @@ const ComparePanel: React.FC<{ accent: string; en: string; pt: string }> = ({ ac
       <div style={{ fontFamily: "Georgia, serif", fontSize: 20, lineHeight: 1.5, color: "#8d8477" }}>{en}</div>
       <div style={{ height: 1, background: "#d8cfbd", margin: "6px 0" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 13, letterSpacing: 3, textTransform: "uppercase", color: accent }}>português</div>
+        <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 13, letterSpacing: 3, textTransform: "uppercase", color: accent }}>{lang === "en" ? "english" : "português"}</div>
         <div style={{ flex: 1, height: 1, background: `${accent}55` }} />
       </div>
       <div style={{ position: "relative", fontFamily: "Georgia, serif", fontSize: 22, lineHeight: 1.55, color: "#1f1d19" }}>
@@ -154,7 +157,7 @@ const ComparePanel: React.FC<{ accent: string; en: string; pt: string }> = ({ ac
       </div>
       <div style={{ marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 12, letterSpacing: 2, textTransform: "uppercase", color: "#a2937a" }}>tradubook</div>
-        <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 11, letterSpacing: 1.5, color: "#fff", background: "#1b1a17", padding: "6px 10px", borderRadius: 4 }}>EPUB · PT-BR</div>
+        <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 11, letterSpacing: 1.5, color: "#fff", background: "#1b1a17", padding: "6px 10px", borderRadius: 4 }}>{lang === "en" ? "EPUB · EN" : "EPUB · PT-BR"}</div>
       </div>
     </div>
   );
@@ -171,7 +174,8 @@ export const ProductMock: React.FC<{
   lines?: string[];
   name?: string;
   days?: string;
-}> = ({ mode, accent, position = "center", title = "O retrato de Dorian Gray", chapter = "capítulo IV · traduzido", lines = [], name = "Bia, 24 anos", days = "23 dias 11:04:59" }) => {
+  lang?: Lang;
+}> = ({ mode, accent, position = "center", title, chapter, lines = [], name, days, lang = "pt" }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame: frame - 14, fps, config: { damping: 18, mass: 0.8 }, durationInFrames: 24 });
@@ -184,14 +188,27 @@ export const ProductMock: React.FC<{
       <div style={{ transform: `translateY(${y}px) scale(${scale})`, opacity }}>
         {mode === "compare" ? (
           <ComparePanel
+            lang={lang}
             accent={accent}
             en={en ?? "The room was full of the smell of roses, and the sound of the piano came from another room."}
             pt={pt ?? "A sala estava cheia do perfume das rosas, e o som do piano vinha de outro quarto."}
           />
         ) : mode === "book" ? (
-          <BookPanel accent={accent} title={title} chapter={chapter} lines={lines} page={47} />
+          <BookPanel
+            lang={lang}
+            accent={accent}
+            title={title ?? (lang === "en" ? "The Picture of Dorian Gray" : "O retrato de Dorian Gray")}
+            chapter={chapter ?? (lang === "en" ? "chapter IV · translated" : "capítulo IV · traduzido")}
+            lines={lines}
+            page={47}
+          />
         ) : (
-          <PhonePanel accent={accent} name={name} days={days} />
+          <PhonePanel
+            lang={lang}
+            accent={accent}
+            name={name ?? (lang === "en" ? "For you, Bia" : "Bia, 24 anos")}
+            days={days ?? (lang === "en" ? "23 days 11:04:59" : "23 dias 11:04:59")}
+          />
         )}
       </div>
     </div>

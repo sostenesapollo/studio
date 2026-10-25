@@ -55,6 +55,9 @@ export type Video = {
   duration: number | null;
   created_at: string;
   posted_at: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  lang: "pt" | "en" | null;
 };
 
 export type Provider = {
@@ -72,7 +75,18 @@ export type Provider = {
 
 export type Summary = {
   counts: { new: number; seen: number; posted: number; queued: number };
-  news: { id: number; title: string; thumb_path: string | null; format: string; brand: string; accent: string }[];
+  news: {
+    id: number;
+    title: string;
+    thumb_path: string | null;
+    format: string;
+    brand: string;
+    accent: string;
+    caption?: string | null;
+    hashtags?: string | null;
+    lang?: string | null;
+    created_local?: string | null;
+  }[];
   alerts: string[];
   rendering: boolean;
 };

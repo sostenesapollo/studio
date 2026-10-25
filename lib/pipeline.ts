@@ -7,6 +7,7 @@ import { buildScript, makeCaptions } from "./script";
 import { CHAR_COST, synthesize, voiceEnabled } from "./voice";
 import { logSpend } from "./credits";
 import { pickTemplate, type TemplateId } from "./templates";
+import type { Lang } from "./writer";
 
 function brollPool(brand: string, format?: string): { clips: string[]; demo: string[] } {
   const stock: string[] = [];
@@ -73,11 +74,55 @@ export type GenerateOpts = {
   grade?: string;
   hook?: string;
   durationSec?: number;
+  /** idioma da legenda, dublagem, título e descrição */
+  lang?: Lang;
 };
+
+/** textos que ficam queimados no vídeo (mock do produto, rótulos do split) */
+const I18N = {
+  pt: {
+    splitTopFile: "o arquivo",
+    splitTopGift: "o presente",
+    splitBottomBook: "o livro pronto",
+    splitBottomGift: "ela abre assim",
+    bookChapter: "capítulo iv · traduzido",
+    bookTitle: "O retrato de Dorian Gray",
+    bookLines: [
+      "A sala estava cheia do perfume das rosas, e o som do piano vinha de outro quarto.",
+      "Ele fechou o livro devagar, como quem guarda uma promessa.",
+      "Do lado de fora, a cidade continuava indiferente ao que acabara de acontecer.",
+    ],
+    compareFrom:
+      "The room was full of the smell of roses, and the sound of the piano came from another room. He closed the book slowly, as if keeping a promise.",
+    compareTo: "A sala estava cheia do perfume das rosas, e o som do piano vinha de outro quarto. Ele fechou o livro devagar, como quem guarda uma promessa.",
+    phoneName: "Pra você, Bia",
+    phoneDays: "23 dias 11:04:59",
+  },
+  en: {
+    splitTopFile: "the file",
+    splitTopGift: "the gift",
+    splitBottomBook: "the book",
+    splitBottomGift: "she opens it",
+    bookChapter: "chapter iv · translated",
+    bookTitle: "The Picture of Dorian Gray",
+    bookLines: [
+      "The room was full of the smell of roses, and the sound of the piano came from another room.",
+      "He closed the book slowly, as if keeping a promise.",
+      "Outside, the city went on, indifferent to what had just happened.",
+    ],
+    compareFrom:
+      "La habitación estaba llena del perfume de las rosas, y el sonido del piano venía de otro cuarto. Cerró el libro despacio, como quien guarda una promesa.",
+    compareTo: "The room was full of the smell of roses, and the sound of the piano came from another room. He closed the book slowly, as if keeping a promise.",
+    phoneName: "For you, Bia",
+    phoneDays: "23 days 11:04:59",
+  },
+} as const;
 
 export async function generateVideo(o: GenerateOpts): Promise<Video> {
   const seed = o.seed ?? Math.floor(Math.random() * 1e9);
-  const script = await buildScript(o.brand.slug, o.format, seed, o.angle as any);
+  const lang: Lang = o.lang === "en" ? "en" : "pt";
+  const t = I18N[lang];
+  const script = await buildScript(o.brand.slug, o.format, seed, o.angle as any, lang);
   if (o.hook) script.hook = o.hook;
 
   const template = pickTemplate(
@@ -93,7 +138,7 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
   let voiceDur = 0;
   if (voiceEnabled()) {
     try {
-      const v = await synthesize(script.voiceover, o.brand.voice_id, seed);
+      const v = await synthesize(script.voiceover, o.brand.voice_id, seed, lang);
       voicePath = v.path;
       voiceDur = v.duration;
       logSpend({
@@ -134,7 +179,10 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
     : makeCaptions(script.voiceover, 0.2, duration - 3.0);
 
   const splitLabels = template.split
-    ? { top: o.brand.slug === "tradubook" ? "o arquivo" : "o presente", bottom: o.brand.slug === "tradubook" ? "o livro pronto" : "ela abre assim" }
+    ? {
+        top: o.brand.slug === "tradubook" ? t.splitTopFile : t.splitTopGift,
+        bottom: o.brand.slug === "tradubook" ? t.splitBottomBook : t.splitBottomGift,
+      }
     : null;
 
   const overlay = await renderOverlay(
@@ -156,20 +204,18 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
             ? script.angle?.includes("objecao") || seed % 3 === 0
               ? {
                   mode: "compare",
-                  en: "The room was full of the smell of roses, and the sound of the piano came from another room. He closed the book slowly, as if keeping a promise.",
-                  pt: "A sala estava cheia do perfume das rosas, e o som do piano vinha de outro quarto. Ele fechou o livro devagar, como quem guarda uma promessa.",
+                  lang,
+                  en: t.compareFrom,
+                  pt: t.compareTo,
                 }
               : {
                   mode: "book",
-                  chapter: "capítulo iv · traduzido",
-                  title: "O retrato de Dorian Gray",
-                  lines: [
-                    "A sala estava cheia do perfume das rosas, e o som do piano vinha de outro quarto.",
-                    "Ele fechou o livro devagar, como quem guarda uma promessa.",
-                    "Do lado de fora, a cidade continuava indiferente ao que acabara de acontecer.",
-                  ],
+                  lang,
+                  chapter: t.bookChapter,
+                  title: t.bookTitle,
+                  lines: [...t.bookLines],
                 }
-            : { mode: "phone", name: "Pra você, Bia", days: "23 dias 11:04:59" },
+            : { mode: "phone", lang, name: t.phoneName, days: t.phoneDays },
       durationInFrames: frames,
       showProgress: true,
     } as any,
@@ -211,12 +257,15 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
     captions,
     duration: realDur,
     seed,
+    lang,
+    caption: script.caption,
+    hashtags: script.hashtags,
   };
   writeFileSync(out.replace(/\.mp4$/, ".json"), JSON.stringify(project, null, 2));
 
   const r = db
     .query(
-      "INSERT INTO videos (brand_id, title, hook, format, status, file_path, thumb_path, duration, project) VALUES (?,?,?,?,?,?,?,?,?) RETURNING *",
+      "INSERT INTO videos (brand_id, title, hook, format, status, file_path, thumb_path, duration, project, caption, hashtags, lang) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) RETURNING *",
     )
     .get(
       o.brand.id,
@@ -228,6 +277,9 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
       thumb,
       realDur,
       JSON.stringify(project),
+      script.caption,
+      script.hashtags.join(" "),
+      lang,
     ) as Video;
 
   if (track) db.query("INSERT INTO music_use (path, video_id) VALUES (?, ?)").run(track, r.id);

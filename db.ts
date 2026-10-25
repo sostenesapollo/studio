@@ -45,7 +45,10 @@ CREATE TABLE IF NOT EXISTS videos (
   seen_at TEXT,
   rating TEXT,
   feedback_note TEXT,
-  rated_at TEXT
+  rated_at TEXT,
+  caption TEXT,
+  hashtags TEXT,
+  lang TEXT DEFAULT 'pt'
 );
 CREATE INDEX IF NOT EXISTS idx_videos_status ON videos(status);
 CREATE INDEX IF NOT EXISTS idx_videos_brand ON videos(brand_id);
@@ -126,6 +129,9 @@ try {
     ["rating", "TEXT"],
     ["feedback_note", "TEXT"],
     ["rated_at", "TEXT"],
+    ["caption", "TEXT"],
+    ["hashtags", "TEXT"],
+    ["lang", "TEXT DEFAULT 'pt'"],
   ] as const) {
     if (!cols.includes(col)) db.exec(`ALTER TABLE videos ADD COLUMN ${col} ${type}`);
   }
@@ -165,6 +171,9 @@ export type Video = {
   created_at: string;
   posted_at: string | null;
   seen_at: string | null;
+  caption: string | null;
+  hashtags: string | null;
+  lang: string | null;
 };
 
 export function getSetting(key: string): string | null {

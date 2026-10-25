@@ -52,7 +52,15 @@ fechamento falado + card final (link na bio / pergunta), quebra de objeção
 - **Roteiro**: gerado por LLM (DeepSeek/Gemini via OpenRouter) seguindo `GUIDELINES.md`,
   com 12 ângulos narrativos e revisão ortográfica. Sem LLM, cai no banco local.
 - **Hooks**: banco de reserva sem preço em `lib/script.ts`.
-- **Voz**: 6 vozes PT-BR do ElevenLabs, rotacionadas por seed; áudio normalizado a -16 LUFS.
+- **Idioma**: `pt` ou `en` (aba Gerar: português / inglês / os dois — alterna por vídeo).
+  O idioma vale para tudo: roteiro, voz, legendas queimadas, título, descrição, hashtags
+  e os textos do mock do produto. Banco de reserva em inglês em `lib/script.ts`.
+- **Título, descrição e hashtags**: cada vídeo grava `title` (o hook falado), `caption`
+  (legenda do post, 1-2 frases) e `hashtags` (8-10, sem `#`), no idioma do vídeo.
+  Aparecem prontos pra copiar no StudioBar (clique copia) e no modal do vídeo.
+  `bun run scripts/backfill-copy.ts` preenche os vídeos antigos.
+- **Voz**: ElevenLabs, rotacionada por seed e filtrada por idioma
+  (`pt-voices.json` / `en-voices.json`); áudio normalizado a -16 LUFS.
 - **Trilha**: 36 faixas (Mixkit + Internet Archive), escolhidas por mood da marca,
   sem repetir nenhuma das últimas 8 usadas, com offset aleatório no arquivo e volume por template.
 - **Mock do produto**: página de livro traduzida (tradubook) ou tela do presente (giftsqr)
@@ -75,6 +83,7 @@ bun run scripts/fetch-stock.ts        # Mixkit
 bun run scripts/fetch-music.ts        # trilhas CC (Internet Archive)
 bun run scripts/fetch-music-mixkit.ts # trilhas Mixkit por mood (upbeat, funk, cinematic...)
 bun run scripts/shots.ts              # telas reais do site (formato demo)
+bun run scripts/backfill-copy.ts      # descrição + hashtags nos vídeos antigos (--dry pra simular)
 ```
 
 ## Créditos

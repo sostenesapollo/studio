@@ -6,6 +6,7 @@ import { db, FILES, ROOT, getSetting, setSetting, type Brand, type Video } from 
 import { getCredits, spendSummary, logSpend } from "./lib/credits";
 import { keySet, setKey } from "./lib/keys";
 import { generateVideo, type GenerateOpts } from "./lib/pipeline";
+import type { Lang } from "./lib/writer";
 import { learningBrief } from "./lib/learning";
 import { run } from "./lib/media";
 
@@ -101,7 +102,13 @@ async function api(req: Request, url: URL, p: string): Promise<Response> {
 
   if (p === "/api/summary") {
     const news = db
-      .query("SELECT v.id, v.title, v.thumb_path, v.file_path, v.duration, v.format, v.created_at, b.name AS brand, b.accent FROM videos v JOIN brands b ON b.id=v.brand_id WHERE v.status='new' ORDER BY v.id DESC")
+      .query(
+        `SELECT v.id, v.title, v.hook, v.caption, v.hashtags, v.lang, v.thumb_path, v.file_path, v.duration, v.format,
+                v.created_at, datetime(v.created_at, 'localtime') AS created_local,
+                b.name AS brand, b.accent
+         FROM videos v JOIN brands b ON b.id=v.brand_id
+         WHERE v.status='new' ORDER BY v.id DESC`,
+      )
       .all();
     const counts = {
       new: (db.query("SELECT COUNT(*) c FROM videos WHERE status='new'").get() as any).c,
@@ -244,6 +251,7 @@ async function api(req: Request, url: URL, p: string): Promise<Response> {
           particle: b.particle ?? proj.script?.particle,
           grade: b.grade ?? proj.script?.grade,
           durationSec: b.durationSec ?? proj.duration,
+          lang: b.lang ?? proj.lang ?? proj.script?.lang ?? v.lang ?? "pt",
         },
         1,
       );
@@ -257,20 +265,27 @@ async function api(req: Request, url: URL, p: string): Promise<Response> {
     const brand = db.query("SELECT * FROM brands WHERE slug=?").get(b.brand) as Brand | null;
     if (!brand) return json({ error: "marca não encontrada" }, { status: 400 });
     const count = Math.min(Math.max(Number(b.count ?? 1), 1), 6);
-    enqueue(
-      {
-        brand,
-        format: b.format ?? "faceless",
-        template: b.template ?? undefined,
-        angle: b.angle ?? undefined,
-        particle: b.particle,
-        grade: b.grade,
-        hook: b.hook,
-        durationSec: b.durationSec,
-      },
-      count,
-    );
-    return json({ ok: true, queued: count });
+    // lang: "pt" | "en" | "both" (both alterna os idiomas vídeo a vídeo)
+    const langs: Lang[] = b.lang === "both" ? ["pt", "en"] : [b.lang === "en" ? "en" : "pt"];
+    const base = Date.now();
+    for (let i = 0; i < count; i++) {
+      enqueue(
+        {
+          brand,
+          format: b.format ?? "faceless",
+          template: b.template ?? undefined,
+          angle: b.angle ?? undefined,
+          particle: b.particle,
+          grade: b.grade,
+          hook: b.hook,
+          durationSec: b.durationSec,
+          lang: langs[i % langs.length],
+          seed: base + i * 7919,
+        },
+        1,
+      );
+    }
+    return json({ ok: true, queued: count, langs: Array.from({ length: count }, (_, i) => langs[i % langs.length]) });
   }
 
   if (p === "/api/jobs") {
