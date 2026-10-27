@@ -8,6 +8,8 @@ import { keySet, setKey } from "./lib/keys";
 import { generateVideo, type GenerateOpts } from "./lib/pipeline";
 import type { Lang } from "./lib/writer";
 import { learningBrief } from "./lib/learning";
+import { collect, analyze, engagement, QUERIES, addByUrl, velocity } from "./lib/refs";
+import { swipeBrief } from "./lib/swipe";
 import { run } from "./lib/media";
 
 const PORT = Number(process.env.PORT ?? 4599);
@@ -291,6 +293,38 @@ async function api(req: Request, url: URL, p: string): Promise<Response> {
   if (p === "/api/jobs") {
     return json(db.query("SELECT * FROM jobs ORDER BY id DESC LIMIT 30").all());
   }
+
+  if (p === "/api/references") {
+    if (method === "POST") {
+      const b = (await req.json().catch(() => ({}))) as any;
+      if (b.action === "collect") {
+        const r = await collect(b.brand ?? "tradubook", Math.min(Number(b.per ?? 4), 8));
+        return json(r);
+      }
+      if (b.action === "add") {
+        if (!b.url) return json({ error: "sem url" }, { status: 400 });
+        return json(await addByUrl(b.brand ?? "tradubook", b.url));
+      }
+      if (b.action === "analyze") {
+        const rows = db.query("SELECT id FROM refs WHERE status='new' ORDER BY views DESC LIMIT 6").all() as { id: number }[];
+        let ok = 0;
+        for (const r of rows) if (await analyze(r.id)) ok++;
+        return json({ analyzed: ok, total: rows.length });
+      }
+      return json({ error: "ação desconhecida" }, { status: 400 });
+    }
+    const brand = url.searchParams.get("brand");
+    const rows = db.query(
+      brand ? "SELECT id,brand,url,title,author,views,likes,comments,duration,status,recipe FROM refs WHERE brand=? ORDER BY views DESC LIMIT 60"
+            : "SELECT id,brand,url,title,author,views,likes,comments,duration,status,recipe FROM refs ORDER BY views DESC LIMIT 60",
+    ).all(...(brand ? [brand] : [])) as any[];
+    return json({
+      queries: QUERIES,
+      refs: rows.map((r) => ({ ...r, engagement: +engagement(r).toFixed(1), velocity: Math.round(velocity(r)) })),
+    });
+  }
+
+  if (p === "/api/swipe") return json({ brief: swipeBrief(url.searchParams.get("brand") ?? "tradubook") });
 
   if (p === "/api/learning") {
     const row = db

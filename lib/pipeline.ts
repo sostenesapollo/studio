@@ -7,9 +7,10 @@ import { buildScript, makeCaptions } from "./script";
 import { CHAR_COST, synthesize, voiceEnabled } from "./voice";
 import { logSpend } from "./credits";
 import { pickTemplate, type TemplateId } from "./templates";
+import { buildCues } from "./sfx";
 import type { Lang } from "./writer";
 
-function brollPool(brand: string, format?: string): { clips: string[]; demo: string[] } {
+function brollPool(brand: string, format?: string, lang: Lang = "pt"): { clips: string[]; demo: string[] } {
   const stock: string[] = [];
   const demo: string[] = [];
 
@@ -19,7 +20,11 @@ function brollPool(brand: string, format?: string): { clips: string[]; demo: str
     for (const f of readdirSync(dir)) if (/\.(mp4|mov|webm)$/i.test(f)) stock.push(join(dir, f));
   }
 
-  const ddir = join(ASSETS, "demo", brand);
+  // Telas do produto por idioma (assets/demo/<marca>/<lang>/) para a UI gravada
+  // não ficar num idioma diferente da narração. Cai no diretório flat se faltar.
+  const demoBase = join(ASSETS, "demo", brand);
+  const langDir = join(demoBase, lang);
+  const ddir = existsSync(langDir) ? langDir : demoBase;
   if (existsSync(ddir)) for (const f of readdirSync(ddir)) if (/\.(mp4|webm|mov|png|jpe?g)$/i.test(f)) demo.push(join(ddir, f));
 
   if (format === "demo" && demo.length) return { clips: demo, demo };
@@ -157,7 +162,7 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
     (voiceDur ? Math.min(Math.max(Math.ceil(voiceDur + 3.0), 18), 28) : template.duration);
 
   /* ---------- b-roll ---------- */
-  const { clips, demo } = brollPool(o.brand.slug, o.format);
+  const { clips, demo } = brollPool(o.brand.slug, o.format, lang);
   if (!clips.length) throw new Error("sem b-roll em assets/stock — roda scripts/fetch-pexels.ts");
   const rotated = clips.map((_, k) => clips[(k + seed) % clips.length]);
 
@@ -235,6 +240,13 @@ export async function generateVideo(o: GenerateOpts): Promise<Video> {
     grade,
     musicVolume: template.musicVolume,
     musicStart: (seed % 47) + 3,
+    sfx: buildCues({
+      duration,
+      segs: Math.max(2, Math.round(duration / 4.2)),
+      seed,
+      hasMock: Boolean(script.angle?.includes("objecao") ?? false) || seed % 10 < 7,
+      hasCta: Boolean(script.cta),
+    }),
     seed,
     transition: template.transition,
   });

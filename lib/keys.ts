@@ -2,6 +2,13 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+/**
+ * Chaves nunca ficam no repo. Ordem de precedência (a última vence):
+ *   1. arquivos padrão em ~/.config/... (compatibilidade com a máquina do autor)
+ *   2. ~/.config/studio/keys.json (gravado pelo painel Créditos, mode 0600)
+ *   3. variáveis de ambiente (.env na raiz do repo é carregado pelo Bun sozinho)
+ */
+
 const DIR = join(homedir(), ".config", "studio");
 const FILE = join(DIR, "keys.json");
 
@@ -13,6 +20,16 @@ const DEFAULTS: KeyMap = {
   elevenlabs: join(homedir(), ".config", "vsl", "elevenlabs"),
   pexels: join(homedir(), ".config", "vsl", "pexels"),
   gemini: join(homedir(), ".config", "vsl", "gemini"),
+};
+
+const ENV_VARS: KeyMap = {
+  openrouter: "OPENROUTER_API_KEY",
+  magmarouter: "MAGMAROUTER_API_KEY",
+  elevenlabs: "ELEVENLABS_API_KEY",
+  pexels: "PEXELS_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  kie: "KIE_API_KEY",
+  openai: "OPENAI_API_KEY",
 };
 
 function readFileKey(path: string): string | null {
@@ -34,9 +51,9 @@ export function getKeys(): KeyMap {
   try {
     if (existsSync(FILE)) Object.assign(out, JSON.parse(readFileSync(FILE, "utf8")));
   } catch {}
-  for (const k of ["KIE_API_KEY", "ELEVENLABS_API_KEY", "OPENAI_API_KEY"]) {
-    const v = process.env[k];
-    if (v) out[k.toLowerCase().replace("_api_key", "")] = v;
+  for (const [provider, env] of Object.entries(ENV_VARS)) {
+    const v = process.env[env];
+    if (v) out[provider] = v;
   }
   return out;
 }

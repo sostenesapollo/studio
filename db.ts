@@ -1,17 +1,24 @@
 import { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
-export const ROOT = join(homedir(), "dev", "studio");
-export const FILES = join(homedir(), "Movies", "studio");
+/** raiz do projeto = pasta deste arquivo; o repo roda de qualquer caminho */
+export const ROOT = import.meta.dir;
+
+/** onde os vídeos renderizados ficam (fora do repo). STUDIO_FILES=~/Videos/studio */
+export const FILES = resolve((process.env.STUDIO_FILES ?? join(homedir(), "Movies", "studio")).replace(/^~/, homedir()));
+
+/** banco fica no repo por padrão; STUDIO_DB=/caminho/studio.sqlite pra separar */
+const DB_FILE = resolve((process.env.STUDIO_DB ?? join(ROOT, "studio.sqlite")).replace(/^~/, homedir()));
+
 export const ASSETS = join(ROOT, "assets");
 
 for (const d of [FILES, join(FILES, "thumbs"), ASSETS, join(ASSETS, "broll"), join(ASSETS, "music"), join(ASSETS, "overlay")]) {
   mkdirSync(d, { recursive: true });
 }
 
-const db = new Database(join(ROOT, "studio.sqlite"), { create: true });
+const db = new Database(DB_FILE, { create: true });
 db.exec("PRAGMA journal_mode = WAL;");
 
 db.exec(`
@@ -78,6 +85,25 @@ CREATE TABLE IF NOT EXISTS spend (
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS refs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  brand TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'youtube',
+  url TEXT NOT NULL UNIQUE,
+  title TEXT,
+  author TEXT,
+  views INTEGER,
+  likes INTEGER,
+  comments INTEGER,
+  duration REAL,
+  published_at TEXT,
+  query TEXT,
+  transcript TEXT,
+  recipe TEXT,
+  status TEXT NOT NULL DEFAULT 'new',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS music_use (

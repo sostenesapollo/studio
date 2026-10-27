@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "bun run server.ts",
+    "start": "bun run server.ts",
     "build": "cd ui && vite build",
     "ui": "cd ui && vite",
+    "setup": "./bin/install.sh",
+    "menubar": "./menubar/build.sh",
+    "assets": "bun run scripts/fetch-stock.ts && bun run scripts/fetch-music.ts && bun run scripts/fetch-sfx.ts && bun run scripts/fetch-broll.ts",
     "broll": "bun run scripts/fetch-broll.ts"
   },
   "dependencies": {

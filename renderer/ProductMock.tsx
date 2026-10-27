@@ -38,14 +38,14 @@ const BookPanel: React.FC<{ accent: string; title: string; chapter: string; line
         <div style={{ fontFamily: '"AvenirNext-Medium", "Avenir Next", sans-serif', fontSize: 15, letterSpacing: 3.4, textTransform: "uppercase", color: "#8a7a5c", marginBottom: 18 }}>
           {chapter}
         </div>
-        <div style={{ fontFamily: "Georgia, serif", fontSize: 48, lineHeight: 1.06, color: "#1b1a17", marginBottom: 24, letterSpacing: -0.6 }}>
+        <div style={{ fontFamily: '"InstrumentSerif", Georgia, serif', fontSize: 48, lineHeight: 1.06, color: "#1b1a17", marginBottom: 24, letterSpacing: -0.6 }}>
           {title}
         </div>
         {lines.map((l, i) => (
           <div
             key={i}
             style={{
-              fontFamily: "Georgia, serif",
+              fontFamily: '"InstrumentSerif", Georgia, serif',
               fontSize: 26,
               lineHeight: 1.58,
               color: "#2b2823",
@@ -58,7 +58,7 @@ const BookPanel: React.FC<{ accent: string; title: string; chapter: string; line
           </div>
         ))}
       </div>
-      <div style={{ position: "absolute", bottom: 22, left: 0, right: 0, textAlign: "center", fontFamily: "Georgia, serif", fontSize: 15, color: "#8d8069", letterSpacing: 1 }}>
+      <div style={{ position: "absolute", bottom: 22, left: 0, right: 0, textAlign: "center", fontFamily: '"InstrumentSerif", Georgia, serif', fontSize: 15, color: "#8d8069", letterSpacing: 1 }}>
         — {page} —
       </div>
       <div style={{ position: "absolute", top: 22, left: 46, right: 22, textAlign: "right", fontFamily: '"AvenirNext-Medium","Avenir Next",sans-serif', fontSize: 12, letterSpacing: 2.4, textTransform: "uppercase", color: "#a2937a" }}>
@@ -138,13 +138,13 @@ const ComparePanel: React.FC<{ accent: string; en: string; pt: string; lang?: La
       }}
     >
       <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 13, letterSpacing: 3, textTransform: "uppercase", color: "#a2937a" }}>original</div>
-      <div style={{ fontFamily: "Georgia, serif", fontSize: 20, lineHeight: 1.5, color: "#8d8477" }}>{en}</div>
+      <div style={{ fontFamily: '"InstrumentSerif", Georgia, serif', fontSize: 20, lineHeight: 1.5, color: "#8d8477" }}>{en}</div>
       <div style={{ height: 1, background: "#d8cfbd", margin: "6px 0" }} />
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <div style={{ fontFamily: '"AvenirNext-DemiBold","Avenir Next",sans-serif', fontSize: 13, letterSpacing: 3, textTransform: "uppercase", color: accent }}>{lang === "en" ? "english" : "português"}</div>
         <div style={{ flex: 1, height: 1, background: `${accent}55` }} />
       </div>
-      <div style={{ position: "relative", fontFamily: "Georgia, serif", fontSize: 22, lineHeight: 1.55, color: "#1f1d19" }}>
+      <div style={{ position: "relative", fontFamily: '"InstrumentSerif", Georgia, serif', fontSize: 22, lineHeight: 1.55, color: "#1f1d19" }}>
         {pt}
         <div
           style={{
@@ -175,7 +175,7 @@ export const ProductMock: React.FC<{
   name?: string;
   days?: string;
   lang?: Lang;
-}> = ({ mode, accent, position = "center", title, chapter, lines = [], name, days, lang = "pt" }) => {
+}> = ({ mode, accent, position = "center", title, chapter, lines = [], name, days, lang = "pt", en, pt }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const enter = spring({ frame: frame - 14, fps, config: { damping: 18, mass: 0.8 }, durationInFrames: 24 });

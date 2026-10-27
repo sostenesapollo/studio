@@ -4,6 +4,7 @@ import { ROOT } from "../db";
 import { getKeys } from "./keys";
 import { logSpend } from "./credits";
 import { learningBrief } from "./learning";
+import { swipeBrief } from "./swipe";
 
 const GUIDELINES = readFileSync(join(ROOT, "GUIDELINES.md"), "utf8");
 
@@ -99,6 +100,8 @@ UMA única ideia central. Não fale de outro benefício.
 O QUE JÁ FUNCIONOU E O QUE FOI REPROVADO (aprenda com isso):
 ${learningBrief(brand)}
 
+${swipeBrief(brand)}
+
 EXEMPLOS DE GANCHO BOM (concreto, dito por uma pessoa):
 - "Esse livro está na minha estante há quatro anos."
 - "Ela abriu e ficou olhando a tela sem falar nada."
@@ -113,6 +116,9 @@ Sem metáfora de vendas, sem adjetivo grandioso, sem frase de resumo no final.
 Não invente parentes, nomes próprios, doenças, números de vendas ou resultados.
 Se precisar de contexto pessoal, use algo genérico e plausível ("um livro que ganhei", "uma amiga").
 O gancho tem que soar como fala, não como título de matéria.
+
+IDIOMA: tudo em português brasileiro falado. As referências em inglês servem só de
+estrutura — nunca copie nem adapte a frase em inglês literalmente.
 
 REGRAS DURAS:
 - Nunca cite preço, desconto, cupom, "grátis", urgência, "link na bio", "corre".
@@ -297,6 +303,9 @@ export async function writeWithLLM(brand: string, angleId: AngleId, seed: number
         const raw = await callModel(model, p, key, lang);
         const parsed = parse(raw);
         const joined = `${parsed.hook} ${parsed.voiceover} ${parsed.closing ?? ""} ${parsed.cta ?? ""} ${parsed.kicker ?? ""} ${parsed.caption ?? ""}`;
+        const ptWords = (joined.match(/\b(que|não|nao|eu|você|voce|pra|para|de|a|o|um|uma|com|meu|minha|ele|ela|isso|tem|era|foi)\b/gi) ?? []).length;
+        const enWords = (joined.match(/\b(the|and|this|that|with|your|book|i|you|it|was|is|my)\b/gi) ?? []).length;
+        const langOk = ptWords >= 6 && ptWords > enWords * 2;
         const hookOk = (lang === "en" ? HOOK_OK_EN : HOOK_OK_PT).test(parsed.hook);
         const banned = lang === "en" ? BANIDO_EN.test(joined) || PROIBIDO_EN.test(joined) : BANIDO.test(joined) || PROIBIDO.test(joined);
         if (banned || !hookOk) {

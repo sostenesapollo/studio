@@ -10,6 +10,7 @@ async function getServeUrl(): Promise<string> {
   if (cachedServeUrl) return cachedServeUrl;
   cachedServeUrl = await bundle({
     entryPoint: join(ROOT, "renderer", "index.ts"),
+    publicDir: join(ROOT, "public"),
     onProgress: () => {},
   });
   return cachedServeUrl;

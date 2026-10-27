@@ -1,0 +1,69 @@
+#!/bin/bash
+# Controle do Studio instalado (LaunchAgents com.studio.server / com.studio.menubar).
+#
+#   ./bin/studio start|stop|restart|status|logs|open|dev|build
+set -euo pipefail
+cd "$(dirname "$0")/.."
+ROOT="$(pwd)"
+
+PORT="${PORT:-4599}"
+UID_NUM="$(id -u)"
+SERVER_LABEL="com.studio.server"
+MENUBAR_LABEL="com.studio.menubar"
+AGENTS="$HOME/Library/LaunchAgents"
+LOGS="$HOME/Library/Logs/studio"
+URL="http://localhost:$PORT"
+
+loaded() { launchctl print "gui/$UID_NUM/$1" >/dev/null 2>&1; }
+
+case "${1:-}" in
+  start)
+    for label in "$SERVER_LABEL" "$MENUBAR_LABEL"; do
+      plist="$AGENTS/$label.plist"
+      [ -f "$plist" ] || continue
+      loaded "$label" || launchctl bootstrap "gui/$UID_NUM" "$plist"
+      launchctl kickstart -k "gui/$UID_NUM/$label" 2>/dev/null || true
+    done
+    echo "studio: $URL"
+    ;;
+  stop)
+    for label in "$MENUBAR_LABEL" "$SERVER_LABEL"; do
+      loaded "$label" && launchctl bootout "gui/$UID_NUM/$label" || true
+    done
+    echo "studio: parado"
+    ;;
+  restart)
+    "$0" stop
+    sleep 1
+    "$0" start
+    ;;
+  status)
+    if curl -fsS "$URL/api/summary" >/dev/null 2>&1; then
+      echo "servidor: no ar ($URL)"
+    else
+      echo "servidor: fora do ar ($URL)"
+    fi
+    loaded "$SERVER_LABEL" && echo "agente servidor: carregado" || echo "agente servidor: não instalado (rode ./bin/install.sh)"
+    loaded "$MENUBAR_LABEL" && echo "agente barra: carregado" || echo "agente barra: não instalado"
+    ;;
+  logs)
+    mkdir -p "$LOGS"
+    tail -n 80 -f "$LOGS/server.log" "$LOGS/server.err.log"
+    ;;
+  open)
+    open "$URL"
+    ;;
+  dev)
+    exec bun run server.ts
+    ;;
+  build)
+    bun run build
+    ;;
+  install)
+    exec ./bin/install.sh "$@"
+    ;;
+  *)
+    sed -n '2,5p' "$0"
+    exit 1
+    ;;
+esac

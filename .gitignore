@@ -6,7 +6,7 @@ ui/node_modules/
 studio.sqlite
 studio.sqlite-shm
 studio.sqlite-wal
-assets/
+/assets/
 *.mp4
 *.m4a
 *.mp3
@@ -14,9 +14,21 @@ assets/
 *.png
 !assets/overlay/**/*.svg
 
+# chaves e config local (o .env.example é versionado)
+.env
+.env.*
+!.env.example
+
 # build/caches
 .build/
 dist/
 .cache/
 tmp/
 .DS_Store
+*.log
+
+# app da barra de menu (compilado local)
+menubar/.build/
+menubar/StudioBar.app/
+!menubar/assets/AppIcon.png
+!menubar/assets/AppIcon.icns

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { api, type Brand, type Provider, type Summary, type Video } from "./api";
 
-type Tab = "videos" | "gerar" | "creditos" | "marcas";
+type Tab = "videos" | "gerar" | "refs" | "creditos" | "marcas";
 
 const NETWORKS = ["tiktok", "youtube", "instagram", "pinterest", "outro"];
 const FORMATS = [
@@ -523,6 +523,123 @@ function Gerar({ brands, onDone }: { brands: Brand[]; onDone: () => void }) {
   );
 }
 
+/* ------------------------------- Referências ------------------------------- */
+
+function Referencias() {
+  const [refs, setRefs] = useState<any[]>([]);
+  const [brand, setBrand] = useState("tradubook");
+  const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState("");
+  const [swipe, setSwipe] = useState("");
+
+  const load = useCallback(async () => {
+    const d = await api.get<any>(`/api/references?brand=${brand}`);
+    setRefs(d.refs ?? []);
+    const s = await api.get<any>(`/api/swipe?brand=${brand}`);
+    setSwipe(s.brief ?? "");
+  }, [brand]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function act(action: string, extra?: any) {
+    setBusy(action);
+    try {
+      await api.post("/api/references", { action, brand, ...extra });
+      await load();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div className="view">
+      <div className="view-head">
+        <h1>Referências</h1>
+        <div className="filters">
+          <select value={brand} onChange={(e) => setBrand(e.target.value)}>
+            <option value="tradubook">tradubook</option>
+            <option value="giftsqr">giftsqr</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="row">
+          <button className="btn primary" disabled={!!busy} onClick={() => act("collect", { per: 3 })}>
+            {busy === "collect" ? "coletando…" : "Coletar do YouTube (inglês)"}
+          </button>
+          <button className="btn" disabled={!!busy} onClick={() => act("analyze")}>
+            {busy === "analyze" ? "analisando…" : "Analisar pendentes"}
+          </button>
+        </div>
+        <div className="row" style={{ marginTop: 8 }}>
+          <input
+            style={{ flex: 1 }}
+            placeholder="cola um link do TikTok ou YouTube que performou"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+          />
+          <button
+            className="btn"
+            disabled={!url || !!busy}
+            onClick={async () => {
+              await act("add", { url });
+              setUrl("");
+            }}
+          >
+            Adicionar
+          </button>
+        </div>
+        <p className="hint">
+          YouTube: pega transcript e extrai o padrão. TikTok: só metadados (sem login o TikTok bloqueia leitura).
+        </p>
+      </div>
+
+      <div className="panel">
+        <div className="row between">
+          <h3>O que está sendo injetado no gerador</h3>
+          <span className="muted small">{swipe ? "ativo" : "sem referências analisadas"}</span>
+        </div>
+        <pre className="swipe">{swipe || "Analise algumas referências para o gerador começar a copiar o padrão."}</pre>
+      </div>
+
+      {refs.length === 0 ? (
+        <div className="empty">Nada coletado ainda.</div>
+      ) : (
+        <table className="tbl">
+          <thead>
+            <tr>
+              <th>vídeo</th>
+              <th>views</th>
+              <th>views/dia</th>
+              <th>dur</th>
+              <th>status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {refs.map((r) => (
+              <tr key={r.id}>
+                <td>
+                  <a href={r.url} target="_blank" rel="noreferrer">{r.title?.slice(0, 70)}</a>
+                  <div className="muted small">{r.author}</div>
+                </td>
+                <td>{r.views?.toLocaleString("pt-BR")}</td>
+                <td>{r.velocity?.toLocaleString("pt-BR")}</td>
+                <td className="muted">{Math.round(r.duration)}s</td>
+                <td className={`status ${r.status === "analyzed" ? "new" : ""}`}>{r.status}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------- Créditos ------------------------------- */
 
 function Creditos() {
@@ -728,7 +845,7 @@ function Marcas({ brands, reload }: { brands: Brand[]; reload: () => void }) {
 
 /* ------------------------------- Shell ------------------------------- */
 
-const TABS: Tab[] = ["videos", "gerar", "creditos", "marcas"];
+const TABS: Tab[] = ["videos", "gerar", "refs", "creditos", "marcas"];
 
 export function App() {
   const [tab, setTabState] = useState<Tab>(() => {
@@ -768,6 +885,9 @@ export function App() {
           <button className={tab === "gerar" ? "on" : ""} onClick={() => setTab("gerar")}>
             Gerar {c?.queued ? <span className="pill">{c.queued}</span> : null}
           </button>
+          <button className={tab === "refs" ? "on" : ""} onClick={() => setTab("refs")}>
+            Referências
+          </button>
           <button className={tab === "creditos" ? "on" : ""} onClick={() => setTab("creditos")}>
             Créditos
             {summary?.alerts?.length ? <span className="pill warn">!</span> : null}
@@ -785,6 +905,7 @@ export function App() {
       <main>
         {tab === "videos" ? <Videos brands={brands} onChange={reloadSummary} /> : null}
         {tab === "gerar" ? <Gerar brands={brands} onDone={reloadSummary} /> : null}
+        {tab === "refs" ? <Referencias /> : null}
         {tab === "creditos" ? <Creditos /> : null}
         {tab === "marcas" ? <Marcas brands={brands} reload={reloadBrands} /> : null}
       </main>

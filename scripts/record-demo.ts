@@ -2,14 +2,17 @@
  * Grava a demonstração real do produto (tela do site no celular) para o formato "demo".
  * Saída: assets/demo/<marca>/web-<timestamp>.webm → convertido em mp4 1080x1920.
  */
-import { chromium } from "/Users/sostenesapollo/dev/pwtest/node_modules/playwright-core/index.js";
 import { mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { ASSETS } from "../db";
 import { run } from "../lib/media";
+import { getChromium } from "./lib/browser";
+
+const chromium = await getChromium();
 
 const ALVOS = [
-  { brand: "giftsqr", url: "https://giftsqr.com/br?utm_source=studio-demo", scrolls: 3 },
+  // /br não é locale do giftsqr (404) — usar /pt-BR.
+  { brand: "giftsqr", url: "https://giftsqr.com/pt-BR?utm_source=studio-demo", scrolls: 3 },
   { brand: "tradubook", url: "https://tradubook.com/?utm_source=studio-demo", scrolls: 3 },
 ];
 
@@ -31,7 +34,16 @@ for (const alvo of ALVOS) {
     recordVideo: { dir, size: { width: 720, height: 1280 } },
   });
   const page = await ctx.newPage();
-  await page.goto(alvo.url, { waitUntil: "domcontentloaded", timeout: 45000 }).catch(() => {});
+  const res = await page
+    .goto(alvo.url, { waitUntil: "domcontentloaded", timeout: 45000 })
+    .catch((e: unknown) => {
+      throw new Error(`${alvo.brand}: falha ao abrir ${alvo.url} — ${String(e).slice(0, 120)}`);
+    });
+  const status = res?.status() ?? 0;
+  if (status >= 400) {
+    await ctx.close();
+    throw new Error(`${alvo.brand}: ${alvo.url} respondeu ${status} — gravação abortada`);
+  }
   await page.waitForTimeout(2500);
   for (let i = 0; i < alvo.scrolls; i++) {
     await page.mouse.wheel(0, 620);

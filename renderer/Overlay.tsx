@@ -1,5 +1,6 @@
 import React from "react";
-import { AbsoluteFill, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { Fonts } from "./Fonts";
 import { ProductMock } from "./ProductMock";
 import { GRAIN_URI } from "./grain";
 
@@ -32,6 +33,12 @@ function rnd(seed: number) {
 }
 
 const COUNT = 110;
+const EASE = Easing.bezier(0.16, 1, 0.3, 1);
+/** revelação por máscara: sobe 14px e descobre de baixo para cima */
+const reveal = (frame: number, start = 0, dur = 18) => {
+  const p = interpolate(frame, [start, start + dur], [0, 1], { easing: EASE, extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  return { p, style: { opacity: Math.min(p * 1.6, 1), transform: `translateY(${(1 - p) * 14}px)`, clipPath: `inset(0 0 ${(1 - p) * 100}% 0)` } as React.CSSProperties };
+};
 
 const Particles: React.FC<{ preset: string; accent: string }> = ({ preset, accent }) => {
   const frame = useCurrentFrame();
@@ -112,23 +119,20 @@ const Particles: React.FC<{ preset: string; accent: string }> = ({ preset, accen
 
 const Kicker: React.FC<{ text?: string; accent: string; font?: string; style?: React.CSSProperties }> = ({ text, accent, font, style }) =>
   text ? (
-    <div
-      style={{
-        display: "inline-block",
-        fontSize: 24,
-        letterSpacing: 4.5,
-        textTransform: "uppercase",
-        color: accent,
-        fontFamily: font ?? '"AvenirNext-Medium", "Avenir Next", sans-serif',
-        fontWeight: 600,
-        padding: "7px 15px",
-        border: `1px solid ${accent}66`,
-        borderRadius: 999,
-        background: "rgba(0,0,0,0.42)",
-        ...style,
-      }}
-    >
-      {text}
+    <div style={{ display: "flex", alignItems: "center", gap: 10, ...style }}>
+      <div style={{ width: 26, height: 1, background: accent }} />
+      <div
+        style={{
+          fontSize: 20,
+          letterSpacing: 3.6,
+          textTransform: "uppercase",
+          color: accent,
+          fontFamily: font ?? '"InterTight", system-ui, sans-serif',
+          fontWeight: 600,
+        }}
+      >
+        {text}
+      </div>
     </div>
   ) : null;
 
@@ -145,7 +149,8 @@ const CaptionLine: React.FC<{ c: Caption; tpl: any; accent: string; frame: numbe
     lineHeight: 1.18,
     letterSpacing: tpl.captionStyle === "serif" ? 0 : -0.5,
     textTransform: tpl.captionStyle === "serif" ? "none" : "none",
-    opacity: Math.min(p * 8, 1),
+    opacity: interpolate(p, [0, 0.25], [0, 1], { extrapolateRight: "clamp" }),
+    textShadow: "0 2px 14px rgba(0,0,0,0.8), 0 1px 3px rgba(0,0,0,0.6)",
   };
 
   const Words = ({ dim }: { dim: number }) => (
@@ -155,7 +160,6 @@ const CaptionLine: React.FC<{ c: Caption; tpl: any; accent: string; frame: numbe
           key={wi}
           style={{
             color: wi <= active ? "#fff" : `rgba(255,255,255,${dim})`,
-            textShadow: wi === active ? `0 0 14px ${accent}55` : "none",
           }}
         >
           {w}{" "}
@@ -200,10 +204,10 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
   const { fps, durationInFrames } = useVideoConfig();
   const tpl = template ?? {};
 
-  const inAnim = spring({ frame, fps, config: { damping: 200, mass: 0.6 }, durationInFrames: 16 });
-  const hookOut = interpolate(frame, [110, 130], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const hookIn = reveal(frame, 2, 20);
+  const hookOut = interpolate(frame, [118, 136], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   const ctaStart = ctaFrom ?? Math.max(durationInFrames - 70, 40);
-  const ctaIn = spring({ frame: frame - ctaStart, fps, config: { damping: 200 }, durationInFrames: 18 });
+  const ctaIn = reveal(frame, ctaStart, 16);
 
   const hookStyle: React.CSSProperties = {
     fontFamily: tpl.font,
@@ -218,7 +222,7 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
 
   const CTA = () =>
     cta ? (
-      <div style={{ position: "absolute", bottom: mock ? 800 : tpl.layout === "bottom-bar" ? 40 : 138, left: 0, right: 0, textAlign: "center", opacity: ctaIn, transform: `translateY(${interpolate(ctaIn, [0, 1], [18, 0])}px)` }}>
+      <div style={{ position: "absolute", bottom: mock ? 800 : tpl.layout === "bottom-bar" ? 40 : 138, left: 0, right: 0, textAlign: "center", opacity: ctaIn.p, transform: ctaIn.style.transform, clipPath: ctaIn.style.clipPath }}>
         {tpl.ctaStyle === "underline" ? (
           <div style={{ display: "inline-block", fontFamily: tpl.font, fontSize: 40, fontWeight: 800, color: "#fff", borderBottom: `4px solid ${accent}`, paddingBottom: 8 }}>{cta}</div>
         ) : tpl.ctaStyle === "bare" ? (
@@ -318,6 +322,7 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
 
   return (
     <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      <Fonts />
       <Particles preset={particle} accent={accent} />
 
       {isLetter ? (
@@ -345,7 +350,7 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
 
       {/* hook — topo */}
       {(tpl.layout === "top-left" || isSplit) ? (
-        <div style={{ position: "absolute", top: isLetter ? 56 : 130, left: 56, right: 56, opacity: inAnim * hookOut, transform: `translateY(${interpolate(inAnim, [0, 1], [36, 0])}px)` }}>
+        <div style={{ position: "absolute", top: isLetter ? 56 : 130, left: 56, right: 56, opacity: hookIn.p * hookOut, transform: hookIn.style.transform, clipPath: hookIn.style.clipPath }}>
           <Kicker text={kicker} accent={accent} font={tpl.kickerFont} style={{ marginBottom: 14 }} />
           <div style={hookStyle}>{hook}</div>
         </div>
@@ -353,7 +358,7 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
 
       {/* hook — centro */}
       {tpl.layout === "center" ? (
-        <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", padding: 64, opacity: inAnim * hookOut }}>
+        <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", padding: 64, opacity: hookIn.p * hookOut }}>
           <Kicker text={kicker} accent={accent} font={tpl.kickerFont} style={{ marginBottom: 22 }} />
           <div style={{ ...hookStyle, textAlign: "center", maxWidth: 900 }}>{hook}</div>
           <div style={{ width: 90, height: 2, background: `${accent}aa`, marginTop: 26 }} />
@@ -362,14 +367,14 @@ export const Overlay: React.FC<OverlayProps> = ({ hook, kicker, cta, accent, bra
 
       {/* hook — barra inferior */}
       {tpl.layout === "bottom-bar" ? (
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: accent, padding: "30px 40px 40px", transform: `translateY(${interpolate(inAnim, [0, 1], [140, 0])}px)` }}>
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: accent, padding: "30px 40px 40px", transform: `translateY(${(1 - hookIn.p) * 60}px)` }}>
           <div style={{ ...hookStyle, fontSize: (tpl.hookSize ?? 56) - 6, color: "#0b0b0c", textShadow: "none", letterSpacing: -1 }}>{hook}</div>
         </div>
       ) : null}
 
       {/* letterbox: hook na barra de cima */}
       {isLetter ? (
-        <div style={{ position: "absolute", top: 54, left: 40, right: 40, opacity: inAnim * hookOut, textAlign: "center" }}>
+        <div style={{ position: "absolute", top: 54, left: 40, right: 40, opacity: hookIn.p * hookOut, textAlign: "center" }}>
           <div style={{ ...hookStyle, fontSize: tpl.hookSize, textAlign: "center" }}>{hook}</div>
         </div>
       ) : null}

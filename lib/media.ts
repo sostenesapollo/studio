@@ -43,6 +43,7 @@ export type AssembleInput = {
   music?: string;
   musicStart?: number;
   voice?: string;
+  sfx?: { path: string; at: number; gain?: number }[];
   musicVolume?: number;
   seed?: number;
   grade?: "neutral" | "warm" | "film";
@@ -112,6 +113,13 @@ export async function assemble(i: AssembleInput): Promise<string> {
     args.push("-i", i.voice);
   }
 
+  const sfx = (i.sfx ?? []).filter((x) => x.at < i.duration - 0.1).slice(0, 10);
+  const sfxIdx: number[] = [];
+  for (const s of sfx) {
+    sfxIdx.push(overlayIdx + (i.music ? 2 : 1) + (i.voice ? 1 : 0) + sfxIdx.length);
+    args.push("-i", s.path);
+  }
+
   const parts: string[] = [];
   const stillFrames = Math.max(Math.round(per * 30), 30);
   const norm = (inputIdx: number, idx: number, label: string, w: number, h: number, which: "main" | "top" = "main") => {
@@ -158,17 +166,27 @@ export async function assemble(i: AssembleInput): Promise<string> {
   parts.push(`${cutLabel}${GRADE[i.grade ?? "neutral"]},format=yuv420p[base]`);
   parts.push(`[base][${overlayIdx}:v]overlay=0:0:format=auto[vid]`);
 
-  if (voiceIdx !== null && musicIdx !== null) {
-    parts.push(`[${musicIdx}:a]volume=${i.musicVolume ?? 0.14},afade=t=out:st=${Math.max(i.duration - 1.4, 0)}:d=1.4[bed]`);
-    parts.push(`[${voiceIdx}:a]volume=1.0[vo]`);
-    parts.push(`[vo][bed]amix=inputs=2:duration=longest:normalize=0[aout]`);
+  const audioLabels: string[] = [];
+  if (voiceIdx !== null) {
+    parts.push(`[${voiceIdx}:a]highpass=f=85,acompressor=threshold=-19dB:ratio=2.8:attack=8:release=140,volume=1.0[av]`);
+    audioLabels.push("[av]");
+  }
+  if (musicIdx !== null) {
+    parts.push(`[${musicIdx}:a]volume=${i.musicVolume ?? 0.14},afade=t=out:st=${Math.max(i.duration - 1.4, 0)}:d=1.4[am]`);
+    audioLabels.push("[am]");
+  }
+  sfx.forEach((s, k) => {
+    const ms = Math.max(0, Math.round(s.at * 1000));
+    parts.push(`[${sfxIdx[k]}:a]volume=${s.gain ?? 0.25},adelay=${ms}|${ms}[as${k}]`);
+    audioLabels.push(`[as${k}]`);
+  });
+
+  if (audioLabels.length === 1) {
+    parts.push(`${audioLabels[0]}anull[aout]`);
     args.push("-filter_complex", parts.join(";"), "-map", "[vid]", "-map", "[aout]");
-  } else if (voiceIdx !== null) {
-    parts.push(`[${voiceIdx}:a]volume=1.0[vo]`);
-    args.push("-filter_complex", parts.join(";"), "-map", "[vid]", "-map", "[vo]");
-  } else if (musicIdx !== null) {
-    parts.push(`[${musicIdx}:a]volume=${i.musicVolume ?? 0.24},afade=t=in:st=0:d=0.8,afade=t=out:st=${Math.max(i.duration - 1.4, 0)}:d=1.4[mus]`);
-    args.push("-filter_complex", parts.join(";"), "-map", "[vid]", "-map", "[mus]", "-shortest");
+  } else if (audioLabels.length > 1) {
+    parts.push(`${audioLabels.join("")}amix=inputs=${audioLabels.length}:duration=first:normalize=0,loudnorm=I=-15:TP=-1.2:LRA=9,alimiter=limit=0.97[aout]`);
+    args.push("-filter_complex", parts.join(";"), "-map", "[vid]", "-map", "[aout]");
   } else {
     args.push("-filter_complex", parts.join(";"), "-map", "[vid]");
   }
@@ -188,7 +206,7 @@ export async function assemble(i: AssembleInput): Promise<string> {
     "30",
     "-movflags",
     "+faststart",
-    ...(voiceIdx !== null || musicIdx !== null ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
+    ...(audioLabels.length ? ["-c:a", "aac", "-b:a", "192k"] : ["-an"]),
     i.out,
   );
 
