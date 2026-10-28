@@ -158,8 +158,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var timer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        // .regular: o app ganha tile no Dock (ícone de claquete do bundle)
-        NSApp.setActivationPolicy(.regular)
+        // .accessory: só ícone na barra de menus, sem tile no Dock
+        NSApp.setActivationPolicy(.accessory)
         installMainMenu()
 
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
